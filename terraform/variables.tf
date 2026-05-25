@@ -18,7 +18,7 @@ variable "ami_id" {
   description = "The AMI ID for the backend EC2 instances (Amazon Linux 2)"
   type        = string
   # This is the standard Amazon Linux 2 AMI ID for us-east-1 as of early 2024
-  default     = "ami-020cba7c55df1f615" 
+  default = "ami-020cba7c55df1f615"
 }
 
 variable "instance_type" {
