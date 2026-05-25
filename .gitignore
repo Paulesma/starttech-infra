@@ -1,0 +1,11 @@
+# Local terraform directory (the culprit)
+.terraform/
+.terraform.lock.hcl
+
+# State files (stored in S3, not GitHub)
+*.tfstate
+*.tfstate.backup
+
+# Sensitive variables
+*.tfvars
+terraform.tfvars
