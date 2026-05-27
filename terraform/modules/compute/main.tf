@@ -156,7 +156,7 @@ resource "aws_autoscaling_group" "backend_asg" {
 
   launch_template {
     id      = aws_launch_template.backend_lt.id
-    version = "$Latest"
+    version = aws_launch_template.backend_lt.latest_version
   }
 }
 
