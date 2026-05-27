@@ -125,7 +125,8 @@ resource "aws_launch_template" "backend_lt" {
               sudo systemctl enable docker
               sudo usermod -a -G docker ec2-user
 
-              # Wait for docker
+             # NEW: Wait for IAM role to propagate and Docker to be ready
+              sleep 15
               while [ ! -S /var/run/docker.sock ]; do sleep 2; done
 
               aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
