@@ -16,7 +16,7 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-# Security Group for EC2 (Allows traffic ONLY from ALB)
+# Security Group for EC2
 resource "aws_security_group" "ec2_sg" {
   name   = "backend-ec2-sg"
   vpc_id = var.vpc_id
@@ -69,9 +69,9 @@ resource "aws_lb_listener" "front_end" {
   }
 }
 
-# IAM Role - MATCHING THE IMPORTED NAME
+# IAM Role & Policies
 resource "aws_iam_role" "ec2_role" {
-  name = "EC2-ECR-ReadOnly-Role" # Corrected to match your manual import
+  name = "EC2-ECR-ReadOnly-Role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -92,12 +92,18 @@ resource "aws_iam_role_policy_attachment" "ecr" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
+# ADDED FOR PHASE 3: CloudWatch Logging Permissions
+resource "aws_iam_role_policy_attachment" "cloudwatch" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
 resource "aws_iam_instance_profile" "ec2_profile" {
   name = "backend-ec2-profile"
   role = aws_iam_role.ec2_role.name
 }
 
-# Updated Launch Template
+# Updated Launch Template with Env Vars
 resource "aws_launch_template" "backend_lt" {
   name_prefix   = "backend-lt-"
   image_id      = var.ami_id
@@ -119,14 +125,19 @@ resource "aws_launch_template" "backend_lt" {
               sudo systemctl enable docker
               sudo usermod -a -G docker ec2-user
 
-              # Fix: Login using your variables
+              # Wait for docker
+              while [ ! -S /var/run/docker.sock ]; do sleep 2; done
+
               aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
 
-              # Fix: Pull and Run using variables
-              docker pull ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/starttech-backend:latest
+              docker pull ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/backend:latest
+              
+              # ADDED: Docker run with Environment Variables for Mongo/Redis
               docker run -d \
               --name backend \
               -p 8080:8080 \
+              -e MONGO_URI="${var.mongo_uri}" \
+              -e REDIS_URL="${var.redis_url}" \
               ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/starttech-backend:latest
               EOF
   )
@@ -134,6 +145,7 @@ resource "aws_launch_template" "backend_lt" {
 
 # Auto Scaling Group
 resource "aws_autoscaling_group" "backend_asg" {
+  name                      = "backend-asg"
   desired_capacity          = 2
   max_size                  = 4
   min_size                  = 1
@@ -144,5 +156,18 @@ resource "aws_autoscaling_group" "backend_asg" {
   launch_template {
     id      = aws_launch_template.backend_lt.id
     version = "$Latest"
+  }
+}
+
+# ADDED FOR PHASE 1: Auto Scaling Policy (CPU Tracking)
+resource "aws_autoscaling_policy" "cpu_scaling" {
+  name                   = "target-cpu-80"
+  autoscaling_group_name = aws_autoscaling_group.backend_asg.name
+  policy_type            = "TargetTrackingScaling"
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value = 80.0
   }
 }
