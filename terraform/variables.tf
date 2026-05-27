@@ -52,3 +52,7 @@ variable "aws_account_id" {
   type        = string
   default     = "266545926099"
 }
+variable "mongo_uri" {
+  description = "Connection string for MongoDB Atlas"
+  type        = string
+}
