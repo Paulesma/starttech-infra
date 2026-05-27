@@ -123,8 +123,11 @@ resource "aws_launch_template" "backend_lt" {
               aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
 
               # Fix: Pull and Run using variables
-              docker pull ${var.aws_account_id}.dkr.ecr.${var.aws_region}://
-              docker run -d --name backend -p 8080:8080 ${var.aws_account_id}.dkr.ecr.${var.aws_region}://
+              docker pull ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/starttech-backend:latest
+              docker run -d \
+              --name backend \
+              -p 8080:8080 \
+              ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/starttech-backend:latest
               EOF
   )
 }
