@@ -130,7 +130,7 @@ resource "aws_launch_template" "backend_lt" {
 
               aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
 
-              docker pull ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/backend:latest
+              docker pull ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/starttech-backend:latest
               
               # ADDED: Docker run with Environment Variables for Mongo/Redis
               docker run -d \
