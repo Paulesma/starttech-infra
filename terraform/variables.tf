@@ -47,3 +47,8 @@ variable "private_subnets" {
   type        = list(string)
   default     = []
 }
+variable "aws_account_id" {
+  description = "The AWS Account ID for ECR registry"
+  type        = string
+  default     = "266545926099"
+}
