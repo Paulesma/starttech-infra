@@ -26,5 +26,5 @@ output "redis_endpoint" {
 output "ecr_repository_url" {
   description = "ECR Repository URL for Docker pushes"
   # Replace 'backend' with whatever your ECR resource name is if you created it via Terraform
-  value       = module.compute.ecr_url
+  value = module.compute.ecr_url
 }
