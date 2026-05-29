@@ -204,3 +204,4 @@ resource "aws_autoscaling_policy" "cpu_scaling" {
     target_value = 80.0
   }
 }
+#GodWin
