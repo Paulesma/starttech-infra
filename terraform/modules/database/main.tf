@@ -1,14 +1,18 @@
 resource "aws_elasticache_subnet_group" "redis_subnets" {
   name       = "redis-subnets"
   subnet_ids = var.private_subnets # Keep Redis private for security
+
+  # --- ADD THIS BLOCK TO FIX THE ERROR ---
+  lifecycle {
+    ignore_changes = all
+  }
+  # ----------------------------------------
 }
 
 resource "aws_security_group" "redis_sg" {
   name        = "redis-sg"
   description = "Allow Redis traffic from backend"
   vpc_id      = var.vpc_id
-
-
 
   egress {
     from_port   = 0

@@ -36,15 +36,20 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
-# ALB, Target Group, and Listener
+# ALB - Added lifecycle to prevent Security Group modification errors
 resource "aws_lb" "backend_alb" {
   name               = "backend-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
   subnets            = var.public_subnets
+
+  lifecycle {
+    ignore_changes = [security_groups]
+  }
 }
 
+# Target Group - Added lifecycle to prevent "ResourceInUse" errors
 resource "aws_lb_target_group" "backend_tg" {
   name     = "backend-tg"
   port     = 8080
@@ -57,6 +62,10 @@ resource "aws_lb_target_group" "backend_tg" {
     healthy_threshold   = 2
     unhealthy_threshold = 2
   }
+
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 resource "aws_lb_listener" "front_end" {
@@ -68,14 +77,15 @@ resource "aws_lb_listener" "front_end" {
     target_group_arn = aws_lb_target_group.backend_tg.arn
   }
 }
-# ECR Repository for your Docker images
+
+# ECR Repository
 resource "aws_ecr_repository" "backend" {
   name                 = "starttech-backend"
   image_tag_mutability = "MUTABLE"
-  force_delete         = true # <--- ADDED THIS to fix the "RepositoryNotEmpty" error
+  force_delete         = true 
 
   image_scanning_configuration {
-    scan_on_push = true # Senior requirement: Security scanning
+    scan_on_push = true 
   }
 }
 
@@ -112,7 +122,7 @@ resource "aws_iam_instance_profile" "ec2_profile" {
   role = aws_iam_role.ec2_role.name
 }
 
-# Launch Template with Public IP and Docker Setup
+# Launch Template
 resource "aws_launch_template" "backend_lt" {
   name_prefix   = "backend-lt-"
   image_id      = var.ami_id
@@ -130,13 +140,10 @@ resource "aws_launch_template" "backend_lt" {
   user_data = base64encode(<<-EOF
               #!/bin/bash
               sudo yum update -y
-              # Install Docker AND CloudWatch Agent
               sudo yum install -y docker amazon-cloudwatch-agent 
               sudo service docker start
               sudo systemctl enable docker
               sudo usermod -a -G docker ec2-user
-
-              # --- CLOUDWATCH AGENT CONFIGURATION ---
               cat <<CONFIG > /opt/aws/amazon-cloudwatch-agent/bin/config.json
               {
                 "logs": {
@@ -154,21 +161,11 @@ resource "aws_launch_template" "backend_lt" {
                 }
               }
               CONFIG
-
-              # Start the CloudWatch Agent
               sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
-              # --------------------------------------
-
-              # Wait for Docker to be ready
               sleep 15
               while [ ! -S /var/run/docker.sock ]; do sleep 2; done
-
-              # ECR Login and Deployment
               aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
-
               docker pull ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/starttech-backend:latest
-              
-              # Run container and redirect ALL logs to the file the CloudWatch Agent is watching
               docker run -d \
               --name backend \
               -p 8080:8080 \
@@ -179,7 +176,7 @@ resource "aws_launch_template" "backend_lt" {
   )
 }
 
-# Auto Scaling Group in Public Subnets
+# Auto Scaling Group
 resource "aws_autoscaling_group" "backend_asg" {
   name                      = "backend-asg"
   desired_capacity          = 2
@@ -195,7 +192,7 @@ resource "aws_autoscaling_group" "backend_asg" {
   }
 }
 
-# Auto Scaling Policy (Phase 1 Requirement)
+# Auto Scaling Policy
 resource "aws_autoscaling_policy" "cpu_scaling" {
   name                   = "target-cpu-80"
   autoscaling_group_name = aws_autoscaling_group.backend_asg.name
