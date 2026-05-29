@@ -68,6 +68,15 @@ resource "aws_lb_listener" "front_end" {
     target_group_arn = aws_lb_target_group.backend_tg.arn
   }
 }
+# ECR Repository for your Docker images
+resource "aws_ecr_repository" "backend" {
+  name                 = "starttech-backend"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true # Senior requirement: Security scanning
+  }
+}
 
 # IAM Role & Policies
 resource "aws_iam_role" "ec2_role" {
@@ -92,7 +101,6 @@ resource "aws_iam_role_policy_attachment" "ecr" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-# ADDED FOR PHASE 3: CloudWatch Logging Permissions
 resource "aws_iam_role_policy_attachment" "cloudwatch" {
   role       = aws_iam_role.ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
@@ -103,7 +111,7 @@ resource "aws_iam_instance_profile" "ec2_profile" {
   role = aws_iam_role.ec2_role.name
 }
 
-# Updated Launch Template with Env Vars
+# Launch Template with Public IP and Docker Setup
 resource "aws_launch_template" "backend_lt" {
   name_prefix   = "backend-lt-"
   image_id      = var.ami_id
@@ -114,44 +122,70 @@ resource "aws_launch_template" "backend_lt" {
   }
 
   network_interfaces {
-    security_groups = [aws_security_group.ec2_sg.id]
+    security_groups             = [aws_security_group.ec2_sg.id]
+    associate_public_ip_address = true
   }
 
   user_data = base64encode(<<-EOF
               #!/bin/bash
               sudo yum update -y
-              sudo amazon-linux-extras install docker -y
+              # Install Docker AND CloudWatch Agent
+              sudo yum install -y docker amazon-cloudwatch-agent 
               sudo service docker start
               sudo systemctl enable docker
               sudo usermod -a -G docker ec2-user
 
-             # NEW: Wait for IAM role to propagate and Docker to be ready
+              # --- CLOUDWATCH AGENT CONFIGURATION ---
+              cat <<CONFIG > /opt/aws/amazon-cloudwatch-agent/bin/config.json
+              {
+                "logs": {
+                  "logs_collected": {
+                    "files": {
+                      "collect_list": [
+                        {
+                          "file_path": "/var/log/backend-api.log",
+                          "log_group_name": "/starttech/backend-logs",
+                          "log_stream_name": "{instance_id}"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+              CONFIG
+
+              # Start the CloudWatch Agent
+              sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
+              # --------------------------------------
+
+              # Wait for Docker to be ready
               sleep 15
               while [ ! -S /var/run/docker.sock ]; do sleep 2; done
 
+              # ECR Login and Deployment
               aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
 
               docker pull ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/starttech-backend:latest
               
-              # ADDED: Docker run with Environment Variables for Mongo/Redis
+              # Run container and redirect ALL logs to the file the CloudWatch Agent is watching
               docker run -d \
               --name backend \
               -p 8080:8080 \
               -e MONGO_URI="${var.mongo_uri}" \
               -e REDIS_URL="${var.redis_url}" \
-              ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/starttech-backend:latest
+              ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/starttech-backend:latest > /var/log/backend-api.log 2>&1
               EOF
   )
 }
 
-# Auto Scaling Group
+# Auto Scaling Group in Public Subnets
 resource "aws_autoscaling_group" "backend_asg" {
   name                      = "backend-asg"
   desired_capacity          = 2
   max_size                  = 4
   min_size                  = 1
   target_group_arns         = [aws_lb_target_group.backend_tg.arn]
-  vpc_zone_identifier       = var.private_subnets
+  vpc_zone_identifier       = var.public_subnets
   health_check_grace_period = 300
 
   launch_template {
@@ -160,7 +194,7 @@ resource "aws_autoscaling_group" "backend_asg" {
   }
 }
 
-# ADDED FOR PHASE 1: Auto Scaling Policy (CPU Tracking)
+# Auto Scaling Policy (Phase 1 Requirement)
 resource "aws_autoscaling_policy" "cpu_scaling" {
   name                   = "target-cpu-80"
   autoscaling_group_name = aws_autoscaling_group.backend_asg.name

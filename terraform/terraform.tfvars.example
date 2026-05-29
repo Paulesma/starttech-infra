@@ -1,4 +1,16 @@
-aws_region   = "us-east-1"
-environment  = "prod"
-ami_id       = "ami-020cba7c55df1f615"
+# --- Already have these ---
+aws_region    = "us-east-1"
+environment   = "prod"
+ami_id        = "ami-020cba7c55df1f615"
 instance_type = "t2.micro"
+
+# --- Add these NEW ones for the Launch Template ---
+aws_account_id = "266545926099"  # Your 12-digit AWS Account ID
+mongo_uri      = "mongodb+srv://paulesma93_db_user:yiFQEArBQqo8f6yh@cluster0.4dbp2nt.mongodb.net/?appName=Cluster0"
+redis_url      = "starttech-redis.7jwegm.0001.use1.cache.amazonaws.com:6379"
+
+# --- Add these for the Networking Module (to fix your previous errors) ---
+vpc_id               = "vpc-00a647cfeb5f1d1d1" 
+public_subnet_cidrs  = ["10.0.0.0/24", "10.0.1.0/24"]
+private_subnet_cidrs = ["10.0.3.0/24", "10.0.4.0/24"]
+azs                  = ["us-east-1a", "us-east-1b"]
