@@ -72,6 +72,7 @@ resource "aws_lb_listener" "front_end" {
 resource "aws_ecr_repository" "backend" {
   name                 = "starttech-backend"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true # <--- ADDED THIS to fix the "RepositoryNotEmpty" error
 
   image_scanning_configuration {
     scan_on_push = true # Senior requirement: Security scanning
