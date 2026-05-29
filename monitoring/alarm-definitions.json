@@ -1,9 +1,22 @@
-{
-  "AlarmName": "High-CPU-Utilization",
-  "MetricName": "CPUUtilization",
-  "Namespace": "AWS/EC2",
-  "Threshold": 80,
-  "ComparisonOperator": "GreaterThanThreshold",
-  "Period": 300,
-  "EvaluationPeriods": 2
-}
+[
+  {
+    "AlarmName": "High-CPU-Utilization",
+    "MetricName": "CPUUtilization",
+    "Namespace": "AWS/EC2",
+    "Threshold": 80,
+    "ComparisonOperator": "GreaterThanThreshold",
+    "Period": 300,
+    "EvaluationPeriods": 2,
+    "Description": "Triggers if average CPU stays above 80% for 10 minutes."
+  },
+  {
+    "AlarmName": "Unhealthy-Backend-Targets",
+    "MetricName": "UnHealthyHostCount",
+    "Namespace": "AWS/ApplicationELB",
+    "Threshold": 0,
+    "ComparisonOperator": "GreaterThanThreshold",
+    "Period": 60,
+    "EvaluationPeriods": 1,
+    "Description": "Triggers immediately if any EC2 instance fails the /health check."
+  }
+]

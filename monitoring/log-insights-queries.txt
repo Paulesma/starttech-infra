@@ -1,12 +1,24 @@
-# Query to see the most frequent error messages
+# --- StartTech Log Analysis Queries ---
+
+# 1. Top Error Messages (Aggregated)
+# Use this to identify the most recurring bugs in the system.
 fields @timestamp, @message
 
-| filter @message like /error/ or @message like /ERROR/
+| filter @message like /error/ or @message like /ERROR/ or @message like /fatal/
 | stats count(*) as error_count by @message
 | sort error_count desc
 
-# Query to check health check hits from the ALB
+# 2. ALB Health Check Monitor
+# Verifies the Load Balancer is successfully reaching the /health endpoint.
 fields @timestamp, @message
 
 | filter @message like /GET \/health/
+| sort @timestamp desc
+| limit 50
+
+# 3. Startup Verification
+# Confirms the app successfully connected to MongoDB and Redis during boot.
+fields @timestamp, @message
+
+| filter @message like /connected/ or @message like /initialized/
 | sort @timestamp desc

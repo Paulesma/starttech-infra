@@ -11,16 +11,15 @@ jobs:
     name: "Terraform"
     runs-on: ubuntu-latest
     env:
-      # AWS Credentials for the Provider
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: "us-east-1"
       
-      # Terraform Variables (TF_VAR_ matches your root variables.tf)
+      # Senior Tip: Inject secrets as TF_VARs so Terraform can use them
       TF_VAR_mongo_uri: ${{ secrets.MONGO_URI }}
       TF_VAR_aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
       TF_VAR_aws_region: "us-east-1"
-      TF_VAR_ami_id: "ami-020cba7c55df1f615" # Amazon Linux 2
+      TF_VAR_ami_id: "ami-020cba7c55df1f615" # Amazon Linux 2023
 
     steps:
       - name: Checkout
@@ -28,20 +27,24 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false # Senior Tip: Setting this to false makes 'terraform output' easier to capture
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -input=false
         working-directory: ./terraform
 
-      - name: Terraform Format
+      - name: Terraform Format Check
         run: terraform fmt -check
         working-directory: ./terraform
 
       - name: Terraform Plan
+        id: plan
         run: terraform plan -input=false
         working-directory: ./terraform
 
       - name: Terraform Apply
+        # Ensures apply ONLY happens when merging to main
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve -input=false
         working-directory: ./terraform
