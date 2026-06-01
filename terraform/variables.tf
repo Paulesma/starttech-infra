@@ -47,7 +47,3 @@ variable "mongo_uri" {
   sensitive   = true
 }
 
-variable "redis_url" {
-  description = "The connection endpoint for Redis (include :6379)"
-  type        = string
-}
