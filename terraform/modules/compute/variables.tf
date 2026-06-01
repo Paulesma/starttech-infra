@@ -9,13 +9,14 @@ variable "public_subnets" {
 }
 
 variable "ami_id" {
-  description = "The AMI ID for the EC2 instances (Amazon Linux 2023 recommended)"
+  description = "The AMI ID for the EC2 instances (Ubuntu 24.04 recommended for apt-get support)"
   type        = string
 }
 
 variable "aws_region" {
   description = "AWS region for ECR login and resource placement"
   type        = string
+  default     = "us-east-1"
 }
 
 variable "aws_account_id" {
@@ -26,10 +27,10 @@ variable "aws_account_id" {
 variable "mongo_uri" {
   description = "The connection string for MongoDB Atlas"
   type        = string
-  sensitive   = true # Hides the value in CLI output for security
+  sensitive   = true
 }
 
 variable "redis_url" {
-  description = "The endpoint for the ElastiCache Redis cluster"
+  description = "The endpoint for the ElastiCache Redis cluster (include port :6379)"
   type        = string
 }

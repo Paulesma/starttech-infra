@@ -19,13 +19,13 @@ jobs:
       TF_VAR_mongo_uri: ${{ secrets.MONGO_URI }}
       TF_VAR_aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
       TF_VAR_aws_region: "us-east-1"
-      TF_VAR_ami_id: "ami-020cba7c55df1f615" # Amazon Linux 2023
+      TF_VAR_ami_id: "ami-04b70fa74e45c3917"
 
       TF_VAR_environment: "dev"
 
       # --- Added to fix "No value for required variable" errors ---
       TF_VAR_vpc_id: "vpc-00a647cfeb5f1d1d1"
-      TF_VAR_redis_url: "starttech-redis.7jwegm.0001.use1.cache.amazonaws.com:6379"
+      TF_VAR_public_subnets: '["subnet-0a36170adff420861", "subnet-027ea607175013eb5"]'
 
     steps:
       - name: Checkout

@@ -8,39 +8,30 @@ variable "aws_region" {
 variable "aws_account_id" {
   description = "The AWS Account ID for ECR registry"
   type        = string
-  default     = "266545926099"
 }
 
 variable "environment" {
   description = "The environment name (e.g., dev, prod)"
   type        = string
-  default     = "prod"
+  default     = "dev"
 }
 
 # --- Networking Configuration ---
-variable "public_subnet_cidrs" {
-  description = "CIDR blocks for public subnets"
-  type        = list(string)
-  default     = ["10.0.1.0/24", "10.0.2.0/24"]
+variable "vpc_id" {
+  description = "The ID of the existing VPC"
+  type        = string
 }
 
-variable "private_subnet_cidrs" {
-  description = "CIDR blocks for private subnets"
+variable "public_subnets" {
+  description = "List of public subnet IDs for the ALB and EC2 instances"
   type        = list(string)
-  default     = ["10.0.3.0/24", "10.0.4.0/24"]
-}
-
-variable "azs" {
-  description = "Availability Zones"
-  type        = list(string)
-  default     = ["us-east-1a", "us-east-1b"]
 }
 
 # --- Compute Variables ---
 variable "ami_id" {
-  description = "The AMI ID for the backend EC2 instances (AL2023)"
+  description = "The AMI ID for the backend EC2 instances (Ubuntu 24.04)"
   type        = string
-  default     = "ami-020cba7c55df1f615" # Corrected to your AL2023 ID
+  default     = "ami-04b70fa74e45c3917"
 }
 
 variable "instance_type" {
@@ -53,14 +44,10 @@ variable "instance_type" {
 variable "mongo_uri" {
   description = "Connection string for MongoDB Atlas"
   type        = string
-  sensitive   = true # Hides password from logs
-}
-variable "vpc_id" {
-  description = "The ID of the existing VPC"
-  type        = string
+  sensitive   = true
 }
 
 variable "redis_url" {
-  description = "The connection endpoint for Redis"
+  description = "The connection endpoint for Redis (include :6379)"
   type        = string
 }
