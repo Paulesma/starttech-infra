@@ -3,8 +3,7 @@ variable "vpc_id" {
   type        = string
 }
 
-variable "private_subnets" {
-  description = "List of private subnet IDs for the Redis cluster"
+variable "public_subnets" {
+  description = "List of public subnet IDs for the Redis cluster"
   type        = list(string)
 }
-

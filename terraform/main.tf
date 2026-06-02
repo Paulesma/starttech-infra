@@ -12,10 +12,11 @@ module "storage" {
 
 # 1. Start with Redis (Dependency loop broken)
 module "redis" {
-  source          = "./modules/database"
-  vpc_id          = module.networking.vpc_id
-  private_subnets = module.networking.private_subnets
+  source         = "./modules/database"
+  vpc_id         = var.vpc_id
+  public_subnets = var.public_subnets
 }
+
 
 # 2. Run Compute (Uses Redis Endpoint)
 module "compute" {
