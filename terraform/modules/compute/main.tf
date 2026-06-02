@@ -101,7 +101,7 @@ resource "aws_iam_role" "ec2_role" {
     Statement = [{
       Action    = "sts:AssumeRole"
       Effect    = "Allow"
-      Principal = { Service = "://amazonaws.com" }
+      Principal = { Service = "ec2.amazonaws.com" }
     }]
   })
 }
@@ -143,18 +143,22 @@ resource "aws_launch_template" "backend_lt" {
 
   user_data = base64encode(<<-EOF
               #!/bin/bash
-              # 1. Update and Install Docker/AWS CLI for Ubuntu
+              exec > /var/log/user-data.log 2>&1
+              set -ex
+
+              # 1. Update and Install Docker + AWS CLI
               sudo apt-get update -y
-              sudo apt-get install -y docker.io wget unzip awscli
+              sudo apt-get install -y docker.io awscli wget unzip
               sudo systemctl start docker
               sudo systemctl enable docker
               sudo usermod -aG docker ubuntu
 
-              # 2. Install CloudWatch Agent for Ubuntu
-              wget https://amazonaws.com
+              # 2. Install CloudWatch Agent (Ubuntu)
+              wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
               sudo dpkg -i -E ./amazon-cloudwatch-agent.deb
 
-              # 3. Create CloudWatch Config
+              # 3. Create CloudWatch Agent Config
+              sudo mkdir -p /opt/aws/amazon-cloudwatch-agent/bin
               cat <<CONFIG > /opt/aws/amazon-cloudwatch-agent/bin/config.json
               {
                 "logs": {
@@ -172,20 +176,23 @@ resource "aws_launch_template" "backend_lt" {
                 }
               }
               CONFIG
+
               sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
-              
-              # 4. Wait for Docker and ECR Login
-              sleep 15
+
+              # 4. ECR Login
+              sleep 10
               aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
-              
+
               # 5. Pull and Run Container
-              docker pull ${var.aws_account_id}.dkr.ecr.${var.aws_region}://
+              docker pull ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/starttech-backend:latest
+
               docker run -d \
-              --name backend \
-              -p 8080:8080 \
-              -e MONGO_URI="${var.mongo_uri}" \
-              -e REDIS_URL="${var.redis_url}" \
-              ${var.aws_account_id}.dkr.ecr.${var.aws_region}:// > /var/log/backend-api.log 2>&1
+                --name backend \
+                -p 8080:8080 \
+                -e MONGO_URI="${var.mongo_uri}" \
+                -e REDIS_URL="${var.redis_url}" \
+                ${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/starttech-backend:latest \
+                > /var/log/backend-api.log 2>&1
               EOF
   )
 }
@@ -209,7 +216,7 @@ resource "aws_autoscaling_group" "backend_asg" {
 
   launch_template {
     id      = aws_launch_template.backend_lt.id
-    version = aws_launch_template.backend_lt.latest_version
+    version = "$Latest"
   }
 }
 
@@ -218,6 +225,7 @@ resource "aws_autoscaling_policy" "cpu_scaling" {
   name                   = "target-cpu-80"
   autoscaling_group_name = aws_autoscaling_group.backend_asg.name
   policy_type            = "TargetTrackingScaling"
+
   target_tracking_configuration {
     predefined_metric_specification {
       predefined_metric_type = "ASGAverageCPUUtilization"
